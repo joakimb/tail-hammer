@@ -1,3 +1,3 @@
-# quorum-stats
+# quorum_stats
 
-Code for producing stats in Section 5 in paper Consistency-or-Die.
+Code for producing stats in the paper Consistency-or-Die: Consistency for Key Transparency.
