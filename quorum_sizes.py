@@ -155,12 +155,12 @@ def bin_pdf_left_tail_area(H, p, k):
 #    the right tail R of X, Pr(X>=k), and
 #    the left tail L of Y, Pr(Y<k).
 # In practice we need both L and R to be small enough, but it is application dependent what that actually means.
-def cod_committee_cutoff_probabilities(H, M, p):
+def two_bump_cutoff_probabilities(H, M, p):
   if (M >= H):
-    return -1, -1, -1
+    return -1, 0, 0
   expectedCommitteeSizeH = mpz(p*H) # we need not iterate k any further than this
-  if (expectedCommitteeSizeH > M):
-    return -2, -2, -2
+#  if (expectedCommitteeSizeH > M):
+#    return -2, 0, 0
   expectedCommitteeSizeM = mpz(p*M)
   pm1 = mpfr('1') - p
   cumulativeH = mpfr('0')
@@ -193,7 +193,159 @@ def cod_committee_cutoff_probabilities(H, M, p):
     bMulM -= 1
     bDiv += 1
     k += 1
-  return -3, -3, -3
+  return -2, 0, 0
+
+# X~Bin(M, p), num malicious committee members
+# Y~Bin(H, p), num honest committee members
+# compares cut off values k for simultaneously "minimizing"
+#    the right tail R of X, Pr(X>=k/2), and
+#    the left tail L of Y, Pr(Y<k).
+# In practice we need both L and R to be small enough, but it is application dependent what that actually means.
+def two_bump_q_q_half_cutoff_probabilities(H, M, p):
+  if (M >= H):
+    return -1, 0, 0
+  expectedCommitteeSizeH = mpz(p*H) # we need not iterate k any further than this
+  expectedCommitteeSizeM = mpz(p*M)
+  pm1 = mpfr('1') - p
+  cumulativeH = mpfr('0')
+  cumulativeM_opposite = mpfr('1')
+  p0H = mpfr('1')
+  p0M = mpfr('1')
+  p1H = pm1 ** H
+  bH = mpfr('1')
+  bMulH = H
+  bDivH = mpfr('1')
+  bDivM = mpfr('1')
+  p1M = pm1 ** M
+  bM = mpfr('1')
+  bMulM = M
+  k = 0
+  while k <= expectedCommitteeSizeH:
+    probExactlyK_H = bH * p0H * p1H
+    cumulativeH += probExactlyK_H
+    probExactlyK_M = bM * p0M * p1M
+    cumulativeM_opposite -= probExactlyK_M
+    if (cumulativeH > cumulativeM_opposite):
+      return k, cumulativeH, cumulativeM_opposite
+    p0H *= p
+    p1H /= pm1
+    # update binomial coefficients
+    bH *= bMulH
+    bH /= bDivH
+    bMulH -= 1
+    bDivH += 1
+    k += 1
+    probExactlyK_H = bH * p0H * p1H
+    cumulativeH += probExactlyK_H
+    if (cumulativeH > cumulativeM_opposite):
+      return k, cumulativeH, cumulativeM_opposite
+    p0H *= p
+    p0M *= p
+    p1H /= pm1
+    p1M /= pm1
+    # update binomial coefficients
+    bH *= bMulH
+    bH /= bDivH
+    bM *= bMulM
+    bM /= bDivM
+    bMulH -= 1
+    bMulM -= 1
+    bDivH += 1
+    bDivM += 1
+    k += 1
+  return -2, 0, 0
+
+# X~Bin(M, p), num malicious committee members
+# Y~Bin(N, p), total num committee members
+# Z~Bin(M+H/2, p), num malicious plus half honest committee members
+# compares cut off values k for simultaneously "minimizing"
+#    the right tail R1 of X, Pr(X>=k/2), and
+#    the right tail R2 of Z, Pr(Z>=k), and
+#    the left tail L of Y, Pr(Y<k).
+# In practice we need both L, R1 and R2 to be small enough, but it is application dependent what that actually means.
+def three_bump_cutoff_probabilities(N, H, M, p):
+  if (M >= H):
+    return -1, 0, 0, 0
+  MH2 = M + H // 2
+  expectedCommitteeSizeN = mpz(p*N) # we need not iterate k any further than this
+  pm1 = mpfr('1') - p
+  # MH2
+  cumulativeMH2_opposite = mpfr('1')
+  p0MH2 = mpfr('1')
+  p1MH2 = pm1 ** MH2
+  bMH2 = mpfr('1')
+  bMulMH2 = MH2
+  bDivMH2 = mpfr('1')
+  # N
+  cumulativeN = mpfr('0')
+  p0N = mpfr('1')
+  p1N = pm1 ** N
+  bN = mpfr('1')
+  bMulN = N
+  bDivN = mpfr('1')
+  # M
+  cumulativeM_opposite = mpfr('1')
+  p0M = mpfr('1')
+  p1M = pm1 ** M
+  bM = mpfr('1')
+  bMulM = M
+  bDivM = mpfr('1')
+  k = 0
+  while k <= expectedCommitteeSizeN:
+    probExactlyK_N = bN * p0N * p1N # N
+    cumulativeN += probExactlyK_N # N
+    probExactlyK_MH2 = bMH2 * p0MH2 * p1MH2 # MH2
+    cumulativeMH2_opposite -= probExactlyK_MH2 # MH2
+    probExactlyK_M = bM * p0M * p1M # M
+    cumulativeM_opposite -= probExactlyK_M # M
+    if (cumulativeN > cumulativeM_opposite and cumulativeN > cumulativeMH2_opposite):
+      return k, cumulativeN, cumulativeM_opposite, cumulativeMH2_opposite
+    p0N *= p
+    p1N /= pm1
+    p0MH2 *= p
+    p1MH2 /= pm1
+    # update binomial coefficients
+    # N
+    bN *= bMulN
+    bN /= bDivN
+    bMulN -= 1
+    bDivN += 1
+    # MH2
+    bMH2 *= bMulMH2
+    bMH2 /= bDivMH2
+    bMulMH2 -= 1
+    bDivMH2 += 1
+    k += 1
+    probExactlyK_N = bN * p0N * p1N # N
+    cumulativeN += probExactlyK_N # N
+    probExactlyK_MH2 = bMH2 * p0MH2 * p1MH2 # MH2
+    cumulativeMH2_opposite -= probExactlyK_MH2 # MH2
+    if (cumulativeN > cumulativeM_opposite and cumulativeN > cumulativeMH2_opposite):
+      return k, cumulativeN, cumulativeM_opposite, cumulativeMH2_opposite
+    p0N *= p
+    p1N /= pm1
+    p0M *= p
+    p1M /= pm1
+    p0MH2 *= p
+    p1MH2 /= pm1
+    # update binomial coefficients
+    # N
+    bN *= bMulN
+    bN /= bDivN
+    bMulN -= 1
+    bDivN += 1
+    # M
+    bM *= bMulM
+    bM /= bDivM
+    bMulM -= 1
+    bDivM += 1
+    # MH2
+    bMH2 *= bMulMH2
+    bMH2 /= bDivMH2
+    bMulMH2 -= 1
+    bDivMH2 += 1
+    k += 1
+  return -2, 0, 0
 
 def print_to_string(*args, **kwargs):
     output = io.StringIO()
@@ -202,27 +354,27 @@ def print_to_string(*args, **kwargs):
     output.close()
     return contents
 
-def cod_cutoffs_batch(populationSize, Hpercentage, Mpercentage, startCommitteeSize, endCommitteeSize, stepSize):
+def reliable_broadcast_min_1_honest_party_batch(populationSize, Hpercentage, Mpercentage, startCommitteeSize, endCommitteeSize, stepSize):
   U = mpz(populationSize)
   H = U * Hpercentage // 100
   M = U * Mpercentage // 100
   S = U - H - M
-  fileName = "cod_cutoffs_H%d_M%d.txt" % (Hpercentage, Mpercentage)
+  fileName = "reliable_broadcast_1honest_quorums_N%d_H%d_M%d.txt" % (populationSize, Hpercentage, Mpercentage)
   print("writing to file ", fileName, sep='')
   x_expected_committee_size = []
   x_cutoffs = []
   y = []
   with open(fileName, "w") as f:
+    f.write("Reliable Broadcast\n\n")
     f.write("U = %d (total num users) = 2^{%.2f}\n" % (U, gmpy2.log2(U)))
     f.write("H = %d (num actively honest users, %d%%)\n" % (H, Hpercentage))
     f.write("M = %d (num actively malicious users, %d%%)\n" % (M, Mpercentage))
     f.write("S = %d (num silent/non-responsive users, %d%%)\n" % (S, 100 - Hpercentage - Mpercentage))
-    M += H // 2
-    f.write("Metric: given X~Bin(M + (H/2), p), Y~Bin(H, p), optimal k s.t. Pr(X>=k) = Pr(Y<=k)\n\n")
+    f.write("Metric: given X~Bin(M, p), Y~Bin(U, p), optimal k s.t. Pr(X>=k) = Pr(Y<=k)\n\n")
     for expectedCommitteeSize in range(startCommitteeSize, endCommitteeSize+1, stepSize):
       p = mpfr('1') * expectedCommitteeSize / U
       f.write(print_to_string("p = ", p, " (expected committee size = ", expectedCommitteeSize, ")", sep=''))
-      k, L, R = cod_committee_cutoff_probabilities(H, M, p)
+      k, L, R = two_bump_cutoff_probabilities(U, M, p)
       f.write("  k = %d\n" % (k))
       logL = gmpy2.log2(L)
       logR = gmpy2.log2(R)
@@ -238,7 +390,124 @@ def cod_cutoffs_batch(populationSize, Hpercentage, Mpercentage, startCommitteeSi
     f.write("y = [{0:.2f}".format(y[0]))
     for yy in y[1:]:
       f.write(print_to_string(", {0:.2f}".format(yy), sep='', end=''))
-    f.write("] # log of probability of failure (log of left H tail area = log of right M tail area)\n")
+    f.write("] # log of probability of failure (log of right bump left tail area = log of left bump right tail area)\n")
+
+def reliable_broadcast_honest_majority_party_batch(populationSize, Hpercentage, Mpercentage, startCommitteeSize, endCommitteeSize, stepSize):
+  U = mpz(populationSize)
+  H = U * Hpercentage // 100
+  M = U * Mpercentage // 100
+  S = U - H - M
+  fileName = "reliable_broadcast_honest_majority_quorums_N%d_H%d_M%d.txt" % (populationSize, Hpercentage, Mpercentage)
+  print("writing to file ", fileName, sep='')
+  x_expected_committee_size = []
+  x_cutoffs = []
+  y = []
+  with open(fileName, "w") as f:
+    f.write("Reliable Broadcast\n\n")
+    f.write("U = %d (total num users) = 2^{%.2f}\n" % (U, gmpy2.log2(U)))
+    f.write("H = %d (num actively honest users, %d%%)\n" % (H, Hpercentage))
+    f.write("M = %d (num actively malicious users, %d%%)\n" % (M, Mpercentage))
+    f.write("S = %d (num silent/non-responsive users, %d%%)\n" % (S, 100 - Hpercentage - Mpercentage))
+    f.write("Metric: given X~Bin(M, p), Y~Bin(U, p), optimal k s.t. Pr(X>=k/2) = Pr(Y<=k)\n\n")
+    for expectedCommitteeSize in range(startCommitteeSize, endCommitteeSize+1, stepSize):
+      p = mpfr('1') * expectedCommitteeSize / U
+      f.write(print_to_string("p = ", p, " (expected committee size = ", expectedCommitteeSize, ")", sep=''))
+      k, L, R = two_bump_q_q_half_cutoff_probabilities(U, M, p)
+      f.write("  k = %d\n" % (k))
+      logL = gmpy2.log2(L)
+      logR = gmpy2.log2(R)
+      f.write(print_to_string("  log(L) = ", logL, sep=''))
+      f.write(print_to_string("  log(R) = ", logR, sep=''))
+      f.write("\n")
+      x_expected_committee_size.append(expectedCommitteeSize)
+      x_cutoffs.append(k)
+      y.append(logL) # the larger of the two (pessimistic)
+    # summary printing for plotting convenience
+    f.write(print_to_string("x_expected_committee_sizes = ", x_expected_committee_size, sep=''))
+    f.write(print_to_string("x_cutoffs = ", x_cutoffs, sep=''))
+    f.write("y = [{0:.2f}".format(y[0]))
+    for yy in y[1:]:
+      f.write(print_to_string(", {0:.2f}".format(yy), sep='', end=''))
+    f.write("] # log of probability of failure (log of right bump left tail area = log of left bump right tail area)\n")
+
+def asynchronous_network_min_1_honest_party_batch(populationSize, Hpercentage, Mpercentage, startCommitteeSize, endCommitteeSize, stepSize):
+  U = mpz(populationSize)
+  H = U * Hpercentage // 100
+  M = U * Mpercentage // 100
+  S = U - H - M
+  fileName = "asynchronous_network__1honest_quorums_N%d_H%d_M%d.txt" % (populationSize, Hpercentage, Mpercentage)
+  print("writing to file ", fileName, sep='')
+  x_expected_committee_size = []
+  x_cutoffs = []
+  y = []
+  with open(fileName, "w") as f:
+    f.write("Asynchronous Network\n\n")
+    f.write("U = %d (total num users) = 2^{%.2f}\n" % (U, gmpy2.log2(U)))
+    f.write("H = %d (num actively honest users, %d%%)\n" % (H, Hpercentage))
+    f.write("M = %d (num actively malicious users, %d%%)\n" % (M, Mpercentage))
+    f.write("S = %d (num silent/non-responsive users, %d%%)\n" % (S, 100 - Hpercentage - Mpercentage))
+    M += H // 2
+    f.write("Metric: given X~Bin(M + H/2, p), Y~Bin(U, p), optimal k s.t. Pr(X>=k) = Pr(Y<=k)\n\n")
+    for expectedCommitteeSize in range(startCommitteeSize, endCommitteeSize+1, stepSize):
+      p = mpfr('1') * expectedCommitteeSize / U
+      f.write(print_to_string("p = ", p, " (expected committee size = ", expectedCommitteeSize, ")", sep=''))
+      k, L, R = two_bump_cutoff_probabilities(U, M, p)
+      f.write("  k = %d\n" % (k))
+      logL = gmpy2.log2(L)
+      logR = gmpy2.log2(R)
+      f.write(print_to_string("  log(L) = ", logL, sep=''))
+      f.write(print_to_string("  log(R) = ", logR, sep=''))
+      f.write("\n")
+      x_expected_committee_size.append(expectedCommitteeSize)
+      x_cutoffs.append(k)
+      y.append(logL) # the larger of the two (pessimistic)
+    # summary printing for plotting convenience
+    f.write(print_to_string("x_expected_committee_sizes = ", x_expected_committee_size, sep=''))
+    f.write(print_to_string("x_cutoffs = ", x_cutoffs, sep=''))
+    f.write("y = [{0:.2f}".format(y[0]))
+    for yy in y[1:]:
+      f.write(print_to_string(", {0:.2f}".format(yy), sep='', end=''))
+    f.write("] # log of probability of failure (log of right bump left tail area = log of left bump right tail area)\n")
+
+def asynchronous_network_honest_majority_party_batch(populationSize, Hpercentage, Mpercentage, startCommitteeSize, endCommitteeSize, stepSize):
+  U = mpz(populationSize)
+  H = U * Hpercentage // 100
+  M = U * Mpercentage // 100
+  S = U - H - M
+  fileName = "asynchronous_network_honest_majority_quorums_N%d_H%d_M%d.txt" % (populationSize, Hpercentage, Mpercentage)
+  print("writing to file ", fileName, sep='')
+  x_expected_committee_size = []
+  x_cutoffs = []
+  y = []
+  with open(fileName, "w") as f:
+    f.write("Asynchronous Network\n\n")
+    f.write("U = %d (total num users) = 2^{%.2f}\n" % (U, gmpy2.log2(U)))
+    f.write("H = %d (num actively honest users, %d%%)\n" % (H, Hpercentage))
+    f.write("M = %d (num actively malicious users, %d%%)\n" % (M, Mpercentage))
+    f.write("S = %d (num silent/non-responsive users, %d%%)\n" % (S, 100 - Hpercentage - Mpercentage))
+    f.write("Metric: given X~Bin(M + H/2, p), Y~Bin(U, p), Z~Bin(M, p), smallest k s.t. Pr(X>=k) = Pr(Y<=k)\n\n")
+    for expectedCommitteeSize in range(startCommitteeSize, endCommitteeSize+1, stepSize):
+      p = mpfr('1') * expectedCommitteeSize / U
+      f.write(print_to_string("p = ", p, " (expected committee size = ", expectedCommitteeSize, ")", sep=''))
+      k, L, R1, R2 = three_bump_cutoff_probabilities(U, H, M, p)
+      f.write("  k = %d\n" % (k))
+      logL = gmpy2.log2(L)
+      logR1 = gmpy2.log2(R1)
+      logR2 = gmpy2.log2(R2)
+      f.write(print_to_string("  log(L) = ", logL, sep=''))
+      f.write(print_to_string("  log(R1) = ", logR1, sep=''))
+      f.write(print_to_string("  log(R2) = ", logR2, sep=''))
+      f.write("\n")
+      x_expected_committee_size.append(expectedCommitteeSize)
+      x_cutoffs.append(k)
+      y.append(logL) # the larger of the two (pessimistic)
+    # summary printing for plotting convenience
+    f.write(print_to_string("x_expected_committee_sizes = ", x_expected_committee_size, sep=''))
+    f.write(print_to_string("x_cutoffs = ", x_cutoffs, sep=''))
+    f.write("y = [{0:.2f}".format(y[0]))
+    for yy in y[1:]:
+      f.write(print_to_string(", {0:.2f}".format(yy), sep='', end=''))
+    f.write("] # log of probability of failure\n")
 
 def pdf_visualization(populationSize, Hpercentage, Mpercentage, p, k_start, k_end, numIntermediatePrintouts):
   U = mpfr(populationSize)
@@ -258,16 +527,15 @@ if __name__ == '__main__':
   print("old precision = ", ctx.precision)
   ctx.precision = precision
   print("new precision = ", ctx.precision)
-  #cod_cutoffs_batch(2**30, 79, 1, 100, 7000, 1)
-  #cod_cutoffs_batch(2**30, 75, 5, 100, 20000, 1)
-  #cod_cutoffs_batch(2**30, 70, 10, 100, 20000, 1)
-  #cod_cutoffs_batch(2**30, 65, 15, 100, 26000, 1)
-  #cod_cutoffs_batch(2**30, 60, 20, 7900, 8000, 1) # 30-bit
-  #cod_cutoffs_batch(2**30, 60, 20, 22900, 23000, 1) # 80-bit
-  #cod_cutoffs_batch(2**30, 60, 20, 37400, 37500, 1) # 128-bit
-  #cod_cutoffs_batch(2**30, 60, 20, 76200, 76300, 1) # 256-bit
-  #cod_cutoffs_batch(2**30, 60, 20, 100, 76300, 100) # sparse for plotting
-  #cod_cutoffs_batch(2**30, 55, 25, 1193000, 1193000, 1)
-  #pdf_visualization(2**30, 60, 20, mpfr('0.00001'), 4000, 8000, 400)# higher p
-  #pdf_visualization(2**30, 60, 20, mpfr('0.000001'), 400, 800, 400)# lower p
-  pdf_visualization(2**30, 60, 20, mpfr('0.0000005'), 150, 450, 299)# even lower p
+  reliable_broadcast_min_1_honest_party_batch(10**4, 70, 30, 100, 1000, 1)
+  reliable_broadcast_min_1_honest_party_batch(10**5, 70, 30, 100, 1000, 1)
+  reliable_broadcast_min_1_honest_party_batch(10**9, 70, 30, 100, 1000, 1)
+  reliable_broadcast_honest_majority_party_batch(10**4, 70, 30, 100, 5000, 1)
+  reliable_broadcast_honest_majority_party_batch(10**5, 70, 30, 100, 5000, 1)
+  reliable_broadcast_honest_majority_party_batch(10**9, 70, 30, 100, 5000, 1)
+  asynchronous_network_min_1_honest_party_batch(10**4, 70, 30, 1000, 4000, 1)
+  asynchronous_network_min_1_honest_party_batch(10**5, 70, 30, 1000, 5000, 1)
+  asynchronous_network_min_1_honest_party_batch(10**9, 70, 30, 1000, 5000, 1)
+  asynchronous_network_honest_majority_party_batch(10**4, 70, 30, 100, 5000, 1)
+  asynchronous_network_honest_majority_party_batch(10**5, 70, 30, 100, 5000, 1)
+  asynchronous_network_honest_majority_party_batch(10**9, 70, 30, 100, 5000, 1)
